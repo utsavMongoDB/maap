@@ -2,20 +2,6 @@
 
 An interactive dashboard that visualizes GitHub traffic analytics for MongoDB Application Acceleration Platform (MAAP) repositories. This tool collects views, clones, and other metrics from multiple repositories and presents them in a consolidated, user-friendly interface.
 
-## Features
-
-- Real-time visualization of GitHub traffic data
-- Consolidated view of multiple repositories
-- Metrics include total views, unique visitors, clones, and unique cloners
-- Automatic daily data collection via bash script
-- Responsive design with modern UI
-
-## Prerequisites
-
-- Python 3.6+
-- GitHub Personal Access Token with repo scope
-- Docker (optional, for containerized deployment)
-
 ## Setup Instructions
 
 ### Local Setup
