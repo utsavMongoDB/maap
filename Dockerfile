@@ -9,14 +9,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application
 COPY . .
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
-
-# Create a non-root user
-RUN useradd -m appuser
-USER appuser
-
 # Expose the port Streamlit runs on
 EXPOSE 8501
 
