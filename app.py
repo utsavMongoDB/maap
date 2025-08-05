@@ -4,6 +4,9 @@ import os
 from datetime import datetime
 import streamlit as st
 import pandas as pd
+import dotenv
+# Load environment variables from .env file
+dotenv.load_dotenv()
 
 class GitHubTrafficCollector:
     def __init__(self, token='None'):
@@ -131,52 +134,90 @@ class GitHubTrafficCollector:
 
 
 def run_streamlit_app():
-    st.title("GitHub Repo Traffic Visualizer")
-    st.markdown("Enter your GitHub token, owner, and repo to visualize traffic data.")
+    st.markdown(
+        """
+        <style>
+        .main-title {font-size: 3.2em; font-weight: 700; color: #13aa52; margin-bottom: 0.2em; text-align: center;}
+        .subtitle {font-size: 1.4em; color: #666; margin-bottom: 2em; text-align: center; font-weight: 300;}
+        .metric-box {background: linear-gradient(to right, #f8f9fa, #ffffff); border-radius: 15px; padding: 1.5em; margin-bottom: 1.5em; box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 12px;}
+        .stMetric {background: linear-gradient(to bottom right, #ffffff, #f5f5f5); border-radius: 10px; padding: 15px; box-shadow: rgba(0, 0, 0, 0.05) 0px 1px 7px;}
+        div[data-testid="stMetricValue"] {font-size: 1.8em !important; font-weight: 600 !important; color: #13aa52 !important;}
+        div[data-testid="stMetricLabel"] {font-size: 1em !important; font-weight: 500 !important;}
+        .stDataFrame {border-radius: 10px !important;}
+        .chart-header {text-align: center; color: #333; font-weight: 600; margin-bottom: 1em; border-bottom: 1px solid #eee; padding-bottom: 0.5em;}
+        .dashboard-container {padding: 1em; max-width: 1200px; margin: 0 auto;}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown('<div class="dashboard-container">', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">MAAP Metrics Dashboard</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Visualizing GitHub Traffic Analytics for MAAP Repositories</div>', unsafe_allow_html=True)
 
-    with st.form("github_form"):
-        token = st.text_input("GitHub Personal Access Token", type="password")
-        owner = st.text_input("Repository Owner", value="mongodb-partners")
-        repo = st.text_input("Repository Name", value="maap-framework")
-        submit = st.form_submit_button("Get Traffic Data")
+    json_file = "github_traffic_daily.json"
+    try:
+        with open(json_file, "r") as f:
+            traffic_list = json.load(f)
+        summary_data = []
 
-    if submit:
-        if not token or not owner or not repo:
-            st.error("Please provide all required fields.")
-            return
-        try:
-            collector = GitHubTrafficCollector(token=token)
-            st.info(f"Collecting traffic data for {owner}/{repo}...")
-            traffic_data = collector.get_repo_traffic(owner, repo)
-            st.success("Traffic data collected!")
+        for traffic_data in traffic_list:
+            repo_full = traffic_data.get("repository", "")
+            repo = repo_full.replace("mongodb-partners/", "")
+            views = traffic_data.get("views", {})
+            clones = traffic_data.get("clones", {})
+            views_count = views.get("count", 0)
+            views_uniques = views.get("uniques", 0)
+            clones_count = clones.get("count", 0)
+            clones_uniques = clones.get("uniques", 0)
+            summary_data.append({
+                "Repository": repo,
+                "Views": views_count,
+                "Unique Visitors": views_uniques,
+                "Clones": clones_count,
+                "Unique Cloners": clones_uniques
+            })
 
-            # Views Bar Graph
-            if traffic_data['views'] and 'views' in traffic_data['views']:
-                views_df = pd.DataFrame(traffic_data['views']['views'])
-                views_df['date'] = pd.to_datetime(views_df['timestamp']).dt.date
-                st.subheader("Repository Views (last 14 days)")
-                st.bar_chart(views_df.set_index('date')[['count', 'uniques']])
+        df = pd.DataFrame(summary_data)
+        df_sorted = df.sort_values(by="Views", ascending=False)
 
-            # Clones Bar Graph
-            if traffic_data['clones'] and 'clones' in traffic_data['clones']:
-                clones_df = pd.DataFrame(traffic_data['clones']['clones'])
-                clones_df['date'] = pd.to_datetime(clones_df['timestamp']).dt.date
-                st.subheader("Repository Clones (last 14 days)")
-                st.bar_chart(clones_df.set_index('date')[['count', 'uniques']])
+        # Show top metrics in columns
+        total_views = int(df_sorted["Views"].sum())
+        total_clones = int(df_sorted["Clones"].sum())
+        total_unique_visitors = int(df_sorted["Unique Visitors"].sum())
+        total_unique_cloners = int(df_sorted["Unique Cloners"].sum())
 
-            # Optionally show summary
-            st.subheader("Summary")
-            st.write(f"**Repository:** {traffic_data['repository']}")
-            st.write(f"**Collected At:** {traffic_data['collected_at']}")
-            if traffic_data['views']:
-                st.write(f"**Total Views:** {traffic_data['views']['count']}")
-                st.write(f"**Unique Visitors:** {traffic_data['views']['uniques']}")
-            if traffic_data['clones']:
-                st.write(f"**Total Clones:** {traffic_data['clones']['count']}")
-                st.write(f"**Unique Cloners:** {traffic_data['clones']['uniques']}")
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Views", f"{total_views:,}")
+        with col2:
+            st.metric("Total Unique Visitors", f"{total_unique_visitors:,}")
+        with col3:
+            st.metric("Total Clones", f"{total_clones:,}")
+        with col4:
+            st.metric("Total Unique Cloners", f"{total_unique_cloners:,}")
 
-        except Exception as e:
-            st.error(f"Error collecting traffic data: {e}")
+        # Add a separator
+        st.markdown("<hr style='margin: 2em 0; opacity: 0.3;'>", unsafe_allow_html=True)
+        
+        # First box - Consolidated Traffic Summary
+        st.markdown('<div class="metric-box"><div class="chart-header">Consolidated Traffic Summary</div>', unsafe_allow_html=True)
+        st.dataframe(df_sorted.set_index("Repository"), use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Second box - Total Views and Clones by Repository
+        st.markdown('<div class="metric-box"><div class="chart-header">Total Views and Clones by Repository</div>', unsafe_allow_html=True)
+        chart_df = df_sorted.set_index("Repository")[["Views", "Clones"]]
+        st.bar_chart(chart_df, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Third box - Total Unique Visitors and Cloners by Repository
+        st.markdown('<div class="metric-box"><div class="chart-header">Total Unique Visitors and Cloners by Repository</div>', unsafe_allow_html=True)
+        chart_df2 = df_sorted.set_index("Repository")[["Unique Visitors", "Unique Cloners"]]
+        st.bar_chart(chart_df2, use_container_width=True)
+        st.markdown('</div></div>', unsafe_allow_html=True)
+
+    except Exception as e:
+        st.error(f"Error loading or visualizing data: {e}")
 
 if __name__ == "__main__":
     run_streamlit_app()
