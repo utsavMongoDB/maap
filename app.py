@@ -157,7 +157,18 @@ def run_streamlit_app():
     json_file = "github_traffic_daily.json"
     try:
         with open(json_file, "r") as f:
-            traffic_list = json.load(f)
+            json_content = json.load(f)
+            
+        # Handle both old and new JSON formats
+        if isinstance(json_content, dict) and "data" in json_content:
+            # New format with timestamp
+            traffic_list = json_content.get("data", [])
+            last_updated_timestamp = json_content.get("last_updated", "Unknown")
+        else:
+            # Old format (direct list)
+            traffic_list = json_content
+            last_updated_timestamp = "Unknown"
+            
         summary_data = []
 
         for traffic_data in traffic_list:
@@ -198,6 +209,24 @@ def run_streamlit_app():
 
         # Add a separator
         st.markdown("<hr style='margin: 2em 0; opacity: 0.3;'>", unsafe_allow_html=True)
+        
+        # Display last updated timestamp
+        try:
+            if last_updated_timestamp != "Unknown":
+                # Try to parse the ISO timestamp and format it nicely
+                try:
+                    dt = datetime.fromisoformat(last_updated_timestamp.replace('Z', '+00:00'))
+                    local_dt = dt.astimezone()  # Convert to local timezone
+                    formatted_time = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                    last_updated = formatted_time
+                except:
+                    last_updated = last_updated_timestamp
+            else:
+                last_updated = "Unknown"
+        except Exception as e:
+            last_updated = "Unknown"
+            
+        st.markdown(f"<div style='text-align: right; color: #666; font-size: 0.9em; margin-bottom: 1em;'>Last updated: {last_updated}</div>", unsafe_allow_html=True)
         
         # First box - Consolidated Traffic Summary
         st.markdown('<div class="metric-box"><div class="chart-header">Consolidated Traffic Summary</div>', unsafe_allow_html=True)

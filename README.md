@@ -57,6 +57,27 @@ Add to crontab for daily execution:
 0 0 * * * cd /path/to/maap-1 && ./collect_github_traffic.sh
 ```
 
+The script stores a timestamp of when data was last collected, which is displayed on the dashboard to help users understand data freshness.
+
+### Data Storage Format
+
+The traffic data is stored in a JSON file (`github_traffic_daily.json`) with the following structure:
+
+```json
+{
+  "last_updated": "2023-08-08T11:40:33+05:30",
+  "data": [
+    {
+      "repository": "mongodb-partners/repo-name",
+      "collected_at": "2023-08-08T11:40:34+05:30",
+      "views": { /* view data */ },
+      "clones": { /* clone data */ }
+    },
+    // More repositories...
+  ]
+}
+```
+
 ## Access
 
 Once running, access the dashboard at:

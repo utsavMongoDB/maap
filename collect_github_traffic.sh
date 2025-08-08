@@ -32,6 +32,9 @@ else
   PREV_DATA="[]"
 fi
 
+# Get current timestamp
+CURRENT_TIME=$(date -Iseconds)
+
 echo "[" > "$TMP_FILE"
 for i in "${!REPOS[@]}"; do
   REPO="${REPOS[$i]}"
@@ -71,5 +74,8 @@ for i in "${!REPOS[@]}"; do
 done
 echo "]" >> "$TMP_FILE"
 
-mv "$TMP_FILE" "$OUTPUT_FILE"
-echo "Data collection complete. Saved to $OUTPUT_FILE."
+# Add timestamp to JSON file before finalizing
+TMP_WITH_TIMESTAMP=$(cat "$TMP_FILE")
+echo "{\"last_updated\": \"$CURRENT_TIME\", \"data\": $TMP_WITH_TIMESTAMP}" > "$OUTPUT_FILE"
+
+echo "Data collection complete. Saved to $OUTPUT_FILE with timestamp: $CURRENT_TIME"
