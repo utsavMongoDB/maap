@@ -21,7 +21,7 @@ RUN chmod +x collect_github_traffic.sh
 RUN chmod +x entrypoint.sh
 
 # Create a crontab file
-RUN echo "0 0 * * * cd /app && ./collect_github_traffic.sh >> /var/log/cron.log 2>&1" > /etc/cron.d/github-metrics-cron
+RUN echo "0 0 * * * root cd /app && ./collect_github_traffic.sh >> /var/log/cron.log 2>&1" > /etc/cron.d/github-metrics-cron
 RUN chmod 0644 /etc/cron.d/github-metrics-cron
 RUN crontab /etc/cron.d/github-metrics-cron
 
