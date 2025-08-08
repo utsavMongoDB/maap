@@ -29,7 +29,7 @@ streamlit run app.py
 
 ### Docker Setup
 
-For containerized deployment:
+For basic containerized deployment (Streamlit app only):
 
 1. Build and run using the provided script
 ```bash
@@ -41,6 +41,27 @@ chmod +x run_docker.sh
 ```bash
 docker build -t maap-metrics-dashboard .
 docker run -p 8501:8501 --env-file .env maap-metrics-dashboard
+```
+
+### Docker Setup with Automated Data Collection
+
+For a complete solution that includes automated daily data collection:
+
+1. Build and run using the scheduled Docker script
+```bash
+chmod +x run_docker_scheduled.sh
+./run_docker_scheduled.sh
+```
+
+2. This will:
+   - Build a container with both Streamlit and cron
+   - Run the data collection script once at startup
+   - Schedule the script to run daily at midnight
+   - Start the Streamlit application
+
+3. Check collection logs
+```bash
+docker exec maap-metrics-scheduled cat /var/log/cron.log
 ```
 
 ## Automated Data Collection
