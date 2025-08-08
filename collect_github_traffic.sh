@@ -1,7 +1,14 @@
 #!/bin/bash
 # Script to collect GitHub traffic data for multiple repos and save as JSON
 # Usage: bash collect_github_traffic.sh
-source .env
+
+# Source .env file if it exists
+if [ -f ".env" ]; then
+  source .env
+  echo "Loaded environment variables from .env file"
+else
+  echo "No .env file found, using environment variables from system"
+fi
 OWNER="mongodb-partners"
 REPOS=(
   "maap-framework"
@@ -15,19 +22,29 @@ REPOS=(
   "maap-confluent-gcp-qs"
   "maap-temporal-qs"
 )
-GITHUB_TOKEN="$GITHUB_TOKEN"
 OUTPUT_FILE="github_traffic_daily.json"
 
+# Validate GitHub token
 if [ -z "$GITHUB_TOKEN" ]; then
   echo "Error: GITHUB_TOKEN environment variable not set."
   exit 1
 fi
 
+echo "GitHub token is set, proceeding with data collection"
+
 TMP_FILE="github_traffic_daily_tmp.json"
 
 # If OUTPUT_FILE exists, read previous data
 if [ -f "$OUTPUT_FILE" ]; then
-  PREV_DATA=$(cat "$OUTPUT_FILE")
+  # Handle both the old format (array) and new format (object with data property)
+  FIRST_CHAR=$(head -c 1 "$OUTPUT_FILE")
+  if [ "$FIRST_CHAR" = "{" ]; then
+    # New format with data property
+    PREV_DATA=$(jq -r '.data' "$OUTPUT_FILE")
+  else
+    # Old format (direct array)
+    PREV_DATA=$(cat "$OUTPUT_FILE")
+  fi
 else
   PREV_DATA="[]"
 fi
@@ -44,10 +61,21 @@ for i in "${!REPOS[@]}"; do
   CLONES=$(curl -s -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3+json" \
     "https://api.github.com/repos/$OWNER/$REPO/traffic/clones")
 
-  # Get previous values for this repo
-  PREV_REPO=$(echo "$PREV_DATA" | jq -c ".[] | select(.repository == \"$OWNER/$REPO\")")
-  PREV_VIEWS=$(echo "$PREV_REPO" | jq ".views.count" 2>/dev/null)
-  PREV_CLONES=$(echo "$PREV_REPO" | jq ".clones.count" 2>/dev/null)
+  # Debug info about the JSON structure
+  echo "Processing $OWNER/$REPO with PREV_DATA format:"
+  echo "$PREV_DATA" | head -n 1
+  
+  # Get previous values for this repo with error handling
+  PREV_REPO=$(echo "$PREV_DATA" | jq -c ".[] | select(.repository == \"$OWNER/$REPO\")" 2>/tmp/jq_error.log || echo "{}")
+  if [ -s /tmp/jq_error.log ]; then
+    echo "WARNING: jq error occurred when selecting repo data:"
+    cat /tmp/jq_error.log
+    echo "Creating empty repo data as fallback"
+    PREV_REPO="{}"
+  fi
+  
+  PREV_VIEWS=$(echo "$PREV_REPO" | jq ".views.count" 2>/dev/null || echo 0)
+  PREV_CLONES=$(echo "$PREV_REPO" | jq ".clones.count" 2>/dev/null || echo 0)
   CUR_VIEWS=$(echo "$DATA" | jq ".count" 2>/dev/null)
   CUR_CLONES=$(echo "$CLONES" | jq ".count" 2>/dev/null)
 
