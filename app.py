@@ -41,7 +41,7 @@ class GitHubTrafficCollector:
             'repository': f"{owner}/{repo}",
             'collected_at': datetime.now().isoformat(),
             'views': self.get_views(owner, repo),
-            'clones': self.get_clones(owner, repo),
+            'stars': self.get_stars(owner, repo),
             'referrers': self.get_referrers(owner, repo),
             'paths': self.get_popular_paths(owner, repo)
         }
@@ -59,15 +59,19 @@ class GitHubTrafficCollector:
             print(f"Error fetching views: {response.status_code} - {response.text}")
             return None
     
-    def get_clones(self, owner, repo):
-        """Get repository clone statistics"""
-        url = f"{self.base_url}/repos/{owner}/{repo}/traffic/clones"
+    def get_stars(self, owner, repo):
+        """Get repository star statistics"""
+        url = f"{self.base_url}/repos/{owner}/{repo}"
         response = requests.get(url, headers=self.headers)
         
         if response.status_code == 200:
-            return response.json()
+            data = response.json()
+            return {
+                'count': data.get('stargazers_count', 0),
+                'uniques': data.get('stargazers_count', 0)
+            }
         else:
-            print(f"Error fetching clones: {response.status_code} - {response.text}")
+            print(f"Error fetching stars: {response.status_code} - {response.text}")
             return None
     
     def get_referrers(self, owner, repo):
@@ -117,10 +121,9 @@ class GitHubTrafficCollector:
             print(f"  Total views: {data['views']['count']}")
             print(f"  Unique visitors: {data['views']['uniques']}")
         
-        if data['clones']:
-            print(f"\nClones (last 14 days):")
-            print(f"  Total clones: {data['clones']['count']}")
-            print(f"  Unique cloners: {data['clones']['uniques']}")
+        if data['stars']:
+            print(f"\nStars:")
+            print(f"  Total stars: {data['stars']['count']}")
         
         if data['referrers']:
             print(f"\nTop Referrers:")
@@ -175,17 +178,15 @@ def run_streamlit_app():
             repo_full = traffic_data.get("repository", "")
             repo = repo_full.replace("mongodb-partners/", "")
             views = traffic_data.get("views", {})
-            clones = traffic_data.get("clones", {})
+            stars = traffic_data.get("stars", {})
             views_count = views.get("count", 0)
             views_uniques = views.get("uniques", 0)
-            clones_count = clones.get("count", 0)
-            clones_uniques = clones.get("uniques", 0)
+            stars_count = stars.get("count", 0)
             summary_data.append({
                 "Repository": repo,
                 "Views": views_count,
                 "Unique Visitors": views_uniques,
-                "Clones": clones_count,
-                "Unique Cloners": clones_uniques
+                "Stars": stars_count
             })
 
         df = pd.DataFrame(summary_data)
@@ -193,19 +194,16 @@ def run_streamlit_app():
 
         # Show top metrics in columns
         total_views = int(df_sorted["Views"].sum())
-        total_clones = int(df_sorted["Clones"].sum())
+        total_stars = int(df_sorted["Stars"].sum())
         total_unique_visitors = int(df_sorted["Unique Visitors"].sum())
-        total_unique_cloners = int(df_sorted["Unique Cloners"].sum())
 
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Total Views", f"{total_views:,}")
         with col2:
             st.metric("Total Unique Visitors", f"{total_unique_visitors:,}")
         with col3:
-            st.metric("Total Clones", f"{total_clones:,}")
-        with col4:
-            st.metric("Total Unique Cloners", f"{total_unique_cloners:,}")
+            st.metric("Total Stars", f"{total_stars:,}")
 
         # Add a separator
         st.markdown("<hr style='margin: 2em 0; opacity: 0.3;'>", unsafe_allow_html=True)
@@ -233,15 +231,15 @@ def run_streamlit_app():
         st.dataframe(df_sorted.set_index("Repository"), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Second box - Total Views and Clones by Repository
-        st.markdown('<div class="metric-box"><div class="chart-header">Total Views and Clones by Repository</div>', unsafe_allow_html=True)
-        chart_df = df_sorted.set_index("Repository")[["Views", "Clones"]]
+        # Second box - Total Views and Stars by Repository
+        st.markdown('<div class="metric-box"><div class="chart-header">Total Views and Stars by Repository</div>', unsafe_allow_html=True)
+        chart_df = df_sorted.set_index("Repository")[["Views", "Stars"]]
         st.bar_chart(chart_df, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Third box - Total Unique Visitors and Cloners by Repository
-        st.markdown('<div class="metric-box"><div class="chart-header">Total Unique Visitors and Cloners by Repository</div>', unsafe_allow_html=True)
-        chart_df2 = df_sorted.set_index("Repository")[["Unique Visitors", "Unique Cloners"]]
+        # Third box - Total Unique Visitors by Repository
+        st.markdown('<div class="metric-box"><div class="chart-header">Total Unique Visitors by Repository</div>', unsafe_allow_html=True)
+        chart_df2 = df_sorted.set_index("Repository")[["Unique Visitors"]]
         st.bar_chart(chart_df2, use_container_width=True)
         st.markdown('</div></div>', unsafe_allow_html=True)
 

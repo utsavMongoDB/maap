@@ -42,7 +42,7 @@ get_start_value() {
     *) echo 0 ;;
   esac
 }
-OUTPUT_FILE="github_traffic_daily.json"
+OUTPUT_FILE="/home/ubuntu/maap/github_traffic_daily.json"
 
 # Validate GitHub token
 if [ -z "$GITHUB_TOKEN" ]; then
@@ -52,7 +52,7 @@ fi
 
 echo "GitHub token is set, proceeding with data collection"
 
-TMP_FILE="github_traffic_daily_tmp.json"
+TMP_FILE="/home/ubuntu/maap/github_traffic_daily_tmp.json"
 
 # If OUTPUT_FILE exists, read previous data
 if [ -f "$OUTPUT_FILE" ]; then
@@ -78,8 +78,8 @@ for i in "${!REPOS[@]}"; do
   echo "Collecting data for $OWNER/$REPO..."
   DATA=$(curl -s -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3+json" \
     "https://api.github.com/repos/$OWNER/$REPO/traffic/views")
-  CLONES=$(curl -s -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3+json" \
-    "https://api.github.com/repos/$OWNER/$REPO/traffic/clones")
+  STARS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3+json" \
+    "https://api.github.com/repos/$OWNER/$REPO" | jq '{count: .stargazers_count, uniques: .stargazers_count}')
 
   # Debug info about the JSON structure
   echo "Processing $OWNER/$REPO with PREV_DATA format:"
@@ -95,31 +95,31 @@ for i in "${!REPOS[@]}"; do
   fi
   
   PREV_VIEWS=$(echo "$PREV_REPO" | jq ".views.count" 2>/dev/null || echo 0)
-  PREV_CLONES=$(echo "$PREV_REPO" | jq ".clones.count" 2>/dev/null || echo 0)
+  PREV_STARS=$(echo "$PREV_REPO" | jq ".stars.count" 2>/dev/null || echo 0)
   CUR_VIEWS=$(echo "$DATA" | jq ".count" 2>/dev/null)
-  CUR_CLONES=$(echo "$CLONES" | jq ".count" 2>/dev/null)
+  CUR_STARS=$(echo "$STARS" | jq ".count" 2>/dev/null)
 
   # Calculate delta and increment
   if [ -z "$PREV_VIEWS" ] || [ "$PREV_VIEWS" == "null" ]; then PREV_VIEWS=0; fi
-  if [ -z "$PREV_CLONES" ] || [ "$PREV_CLONES" == "null" ]; then PREV_CLONES=0; fi
+  if [ -z "$PREV_STARS" ] || [ "$PREV_STARS" == "null" ]; then PREV_STARS=0; fi
   if [ -z "$CUR_VIEWS" ] || [ "$CUR_VIEWS" == "null" ]; then CUR_VIEWS=0; fi
-  if [ -z "$CUR_CLONES" ] || [ "$CUR_CLONES" == "null" ]; then CUR_CLONES=0; fi
+  if [ -z "$CUR_STARS" ] || [ "$CUR_STARS" == "null" ]; then CUR_STARS=0; fi
 
   INC_VIEWS=$((CUR_VIEWS - PREV_VIEWS))
-  INC_CLONES=$((CUR_CLONES - PREV_CLONES))
+  INC_STARS=$((CUR_STARS - PREV_STARS))
   TOTAL_VIEWS=$((PREV_VIEWS + INC_VIEWS))
-  TOTAL_CLONES=$((PREV_CLONES + INC_CLONES))
+  TOTAL_STARS=$((PREV_STARS + INC_STARS))
 
   # Apply the start value for views
   START_VALUE=$(get_start_value "$REPO")
   TOTAL_VIEWS=$((TOTAL_VIEWS + START_VALUE))
 
-  # Update views and clones JSON with incremented totals
+  # Update views and stars JSON with incremented totals
   DATA=$(echo "$DATA" | jq ".count = $TOTAL_VIEWS")
-  CLONES=$(echo "$CLONES" | jq ".count = $TOTAL_CLONES")
+  STARS=$(echo "$STARS" | jq ".count = $TOTAL_STARS")
 
   START_VALUE=$(get_start_value "$REPO")
-  REPO_JSON="{  \"repository\": \"$OWNER/$REPO\",  \"collected_at\": \"$(date -Iseconds)\",  \"views\": $DATA,  \"clones\": $CLONES,  \"start_value\": $START_VALUE}"
+  REPO_JSON="{  \"repository\": \"$OWNER/$REPO\",  \"collected_at\": \"$(date -Iseconds)\",  \"views\": $DATA,  \"stars\": $STARS,  \"start_value\": $START_VALUE}"
   echo "$REPO_JSON" >> "$TMP_FILE"
   if [ "$i" -lt $((${#REPOS[@]}-1)) ]; then
     echo "," >> "$TMP_FILE"
