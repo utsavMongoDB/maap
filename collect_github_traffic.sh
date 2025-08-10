@@ -21,7 +21,27 @@ REPOS=(
   "maap-confluent-qs"
   "maap-confluent-gcp-qs"
   "maap-temporal-qs"
+  "ai-memory"
 )
+
+# Function to get start value for a repo
+get_start_value() {
+  local repo=$1
+  case $repo in
+    "maap-framework") echo 142 ;;
+    "maap-anthropic-qs") echo 11 ;;
+    "maap-arcee-qs") echo 2 ;;
+    "maap-meta-qs") echo 6 ;;
+    "langchain-qs") echo 18 ;;
+    "maap-cohere-qs") echo 24 ;;
+    "maap-together-qs") echo 2 ;;
+    "maap-confluent-qs") echo 8 ;;
+    "maap-confluent-gcp-qs") echo 2 ;;
+    "maap-temporal-qs") echo 27 ;;
+    "ai-memory") echo 164 ;;
+    *) echo 0 ;;
+  esac
+}
 OUTPUT_FILE="github_traffic_daily.json"
 
 # Validate GitHub token
@@ -90,11 +110,16 @@ for i in "${!REPOS[@]}"; do
   TOTAL_VIEWS=$((PREV_VIEWS + INC_VIEWS))
   TOTAL_CLONES=$((PREV_CLONES + INC_CLONES))
 
+  # Apply the start value for views
+  START_VALUE=$(get_start_value "$REPO")
+  TOTAL_VIEWS=$((TOTAL_VIEWS + START_VALUE))
+
   # Update views and clones JSON with incremented totals
   DATA=$(echo "$DATA" | jq ".count = $TOTAL_VIEWS")
   CLONES=$(echo "$CLONES" | jq ".count = $TOTAL_CLONES")
 
-  REPO_JSON="{  \"repository\": \"$OWNER/$REPO\",  \"collected_at\": \"$(date -Iseconds)\",  \"views\": $DATA,  \"clones\": $CLONES}"
+  START_VALUE=$(get_start_value "$REPO")
+  REPO_JSON="{  \"repository\": \"$OWNER/$REPO\",  \"collected_at\": \"$(date -Iseconds)\",  \"views\": $DATA,  \"clones\": $CLONES,  \"start_value\": $START_VALUE}"
   echo "$REPO_JSON" >> "$TMP_FILE"
   if [ "$i" -lt $((${#REPOS[@]}-1)) ]; then
     echo "," >> "$TMP_FILE"
